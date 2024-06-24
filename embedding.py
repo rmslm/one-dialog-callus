@@ -34,9 +34,9 @@ if __name__ == "__main__":
 # client = OpenAI()    
 
 # doc = client.embeddings.create(
-#     input=s"plit_files", 
+#     input="file", 
 #     model="text-embedding-3-small"
 #     )
 
 
-# print(len(doc[0]))
+# print(doc)
