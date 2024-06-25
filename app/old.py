@@ -6,9 +6,7 @@ import fitz
 import tiktoken
 
 app = FastAPI()
-client = OpenAI(
-    api_key="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"
-)
+client = OpenAI()
 
 def extract_text_from_pdf(pdf_path):
     doc = fitz.open(pdf_path)
@@ -54,7 +52,6 @@ def gpt_answer():
 def langchain_response():
     
     llm = LangchainOpenAI(
-        openai_api_key="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",
         model_name="gpt-3.5-turbo-instruct")
     reponse = llm.predict("Tell me a joke")
 
