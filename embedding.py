@@ -23,13 +23,23 @@ def chunk_text(text, max_tokens=500):
         chunks.append(encoding.decode(chunk))
     return chunks
 
+client = OpenAI()
+
+def get_embeddings(chunks, model="text-embedding-3-small"):
+    embeddings = []
+    for chunk in chunks:
+        response = client.embeddings.create(input=chunk, model=model)
+        embeddings.append(response.data[0].embedding)
+    return embeddings
+
 if __name__ == "__main__":
     pdf_path = "/Users/parkseohyun/Internship/one-dialog-callus/2103.15348v2.pdf"
     text = extract_text_from_pdf(pdf_path)
     chunks = chunk_text(text)
+    embeddings = get_embeddings(chunks)
 
-    for i, chunk in enumerate(chunks):
-        print(f"Chunk {i+1}:\n{chunk}\n")
+    for i, embedding in enumerate(embeddings):
+        print(f"Chunk {i+1}:\n{embedding}\n")
 
 # client = OpenAI()    
 
