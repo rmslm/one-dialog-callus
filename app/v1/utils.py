@@ -14,16 +14,23 @@ class PDF2Images:
         self.pdf_path = pdf_path
         self.batch_size = batch_size
         self.total_pages = fitz.open(pdf_path).page_count
-        self.content_path = os.path.join(os.path.abspath(__file__), "batch_images" )
+        self.content_path = os.path.join(
+            os.path.dirname( os.path.abspath(__file__) ), "tmp/batch_images" )
 
         os.makedirs( self.content_path , exist_ok=True)
 
     
     def process_batch(self, start:int, end:int, batch_number:int):
 
-        images = convert_from_path(pdf_path, first_page=start, last_page=end, dpi=200)
+        images = convert_from_path(
+            self.pdf_path, 
+            first_page=start, 
+            last_page=end, 
+            dpi=200
+        )
+
         for i, image in enumerate(images):
-            image = preprocess_image(image)
+            image = self.preprocess_image(image)
             image_file_path = f'{self.content_path}/batch_{batch_number}_page_{start + i}.png'
             image.save(image_file_path)
 
@@ -47,7 +54,7 @@ class PDF2Images:
         batches = (self.total_pages + self.batch_size - 1) // self.batch_size
 
         for batch in range(batches):
-            start_page = batch * batch_size + 1
-            end_page = min(start_page + batch_size - 1, self.total_pages)
+            start_page = batch * self.batch_size + 1
+            end_page = min(start_page + self.batch_size - 1, self.total_pages)
 
             self.process_batch(start_page, end_page, batch)
