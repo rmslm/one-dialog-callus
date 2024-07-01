@@ -8,7 +8,7 @@ import fitz
 
 class PDF2Images:
 
-    def __init__(self, pdf_path:str, batch_size:int ):
+    def __init__(self, pdf_path:str, batch_size:int, filename:str=None ):
 
         self.use_gpu = cv2.cuda.getCudaEnabledDeviceCount() > 0
         self.pdf_path = pdf_path
@@ -18,6 +18,9 @@ class PDF2Images:
             os.path.dirname( os.path.abspath(__file__) ), "tmp/batch_images" )
 
         os.makedirs( self.content_path , exist_ok=True)
+
+        self.image_paths = []
+        self.filename = filename
 
     
     def process_batch(self, start:int, end:int, batch_number:int):
@@ -31,10 +34,14 @@ class PDF2Images:
 
         for i, image in enumerate(images):
             image = self.preprocess_image(image)
-            image_file_path = f'{self.content_path}/batch_{batch_number}_page_{start + i}.png'
+            image_file_path = f'{self.content_path}/{self.filename}_batch_{batch_number}_page_{start + i}.png'
             image.save(image_file_path)
 
+            self.image_paths.append(image_file_path)
+
         del images
+
+        return self.image_paths
 
 
     def preprocess_image(self, image):
@@ -58,3 +65,5 @@ class PDF2Images:
             end_page = min(start_page + self.batch_size - 1, self.total_pages)
 
             self.process_batch(start_page, end_page, batch)
+
+        return self.image_paths

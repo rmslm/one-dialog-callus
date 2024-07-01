@@ -2,21 +2,22 @@ from langchain_openai.chat_models import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain.output_parsers import PydanticOutputParser, OutputFixingParser
 
-from app.v1.vision.base import BaseVison
+from app.v1.vision.base import BaseVisonOpenAI
 from app.config import settings
-import base64
 
 from pydantic.v1 import BaseModel, Field
 
-class VisionOpenAI(BaseVison):
+
+class VisionContextOpenAI(BaseVisonOpenAI):
 
     def __init__(self, 
                 *, 
                 image_path:str, 
                 local_image:bool=True,
+                system_prompt:str= None,
                 model:str = "gpt-4o" ):
 
-        super().__init__(image_path=image_path)
+        super().__init__(image_path=image_path, system_prompt=system_prompt)
 
         self.local_image=local_image
 
@@ -26,29 +27,31 @@ class VisionOpenAI(BaseVison):
             model_name = model
         )
 
+        self.form_parser = self.is_form_parser()
 
-    def run(self) -> ChatOpenAI :
 
+    def is_form_parser(self):
         class IsForm(BaseModel):
             form  : bool = Field(
-                description="If the image contains a form for a human to fill say True otherwise False"
+                description=(
+                    "If this page contains a form for a human to fill say True otherwise False "
+                    "if the image contains only text answer with False"
+                )
             )
 
-        pydantic_parser = PydanticOutputParser(pydantic_object=IsForm)
-        output_format = pydantic_parser.get_format_instructions()
+        return PydanticOutputParser(pydantic_object=IsForm)
+    
+
+
+    def chat_messages(self, user_prompt:str ):
 
         messages = [
-            SystemMessage(
-                content="You are a helpful assistant that reads images."
-            ),
+            self.dynamic_system_prompt(prompt=self.system_prompt),
             HumanMessage(
                 content=[
                     {
                         "type": "text",
-                        "text": ( 
-                            "Is there a form in this image? Answer as short as possible. "
-                            f"Use the following format to answer the question {output_format}"
-                        )
+                        "text": f"{user_prompt}"
                     },
                     {
                         "type": "image_url",
@@ -64,22 +67,55 @@ class VisionOpenAI(BaseVison):
             )
         ]
 
-        response = self.llm.invoke(messages)
+        return messages
+
+
+
+    def is_form(self) -> BaseModel :
+
+        user_prompt = (
+            "Is there a form in this image? Answer as short as possible. "
+            f"Use the following format to answer the question {self.form_parser.get_format_instructions()}"
+        )
+
+        response = self.llm.invoke(self.chat_messages(user_prompt=user_prompt))
 
         try :
-            output = pydantic_parser.parse(response.content)
+            output = self.form_parser.parse(response.content)
         except Exception as e :
             print("Correct fix the parser")
             new_parser = OutputFixingParser.from_llm(
-                parser=pydantic_parser, 
+                parser=self.form_parser, 
                 llm=self.llm
             )
             output = new_parser.parse(response.content)
 
+
         return output
 
 
-    @staticmethod
-    def encode_image(image_path:str ) -> base64:
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode('utf-8')
+    def extract_context_from_pdf(self):
+
+        user_prompt = (
+            "Describe section by section the context of this pdf. Your answer should be formated in paragraphs without bullet point or titles."
+            # f"Use the following format to answer the question {self.form_parser.get_format_instructions()}"
+        )
+
+        response = self.llm.invoke(self.chat_messages(user_prompt=user_prompt))
+ 
+        return response
+
+
+    def run(self) -> ChatOpenAI :
+
+        is_form = self.is_form()
+
+        print(is_form)
+
+        r = self.extract_context_from_pdf()
+
+        return r.content
+
+
+
+    
